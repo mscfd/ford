@@ -2133,3 +2133,29 @@ def test_generic_source(tmp_path):
     ]
 
     assert source.doc_list == expected_docs
+
+def test_multiple_bound_procedures(parse_fortran_file):
+    data = """\
+    module test
+      type :: foo
+      contains
+        procedure(proto), public, nopass, deferred :: a, b, c
+      end type
+    contains
+      subroutine a
+      end subroutine
+      subroutine b
+      end subroutine
+      subroutine c
+      end subroutine
+    end module
+    """
+
+    fortran_file = parse_fortran_file(data)
+    fortran_type = fortran_file.modules[0].types[0]
+    expected_names = ["a", "b", "c"]
+    bound_proc_names = sorted([bp.name for bp in fortran_type.boundprocs])
+    assert bound_proc_names == expected_names
+
+    bound_proc_protos = sorted([bp.proto for bp in fortran_type.boundprocs])
+    assert bound_proc_protos == ["proto", "proto", "proto"]

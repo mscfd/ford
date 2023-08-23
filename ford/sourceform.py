@@ -148,7 +148,7 @@ INTERFACE_RE = re.compile(
 )
 BOUNDPROC_RE = re.compile(
     r"""^(?P<generic>generic|procedure)\s*  # Required keyword
-    (?P<prototype>\([^()]*\))?\s*           # Optional interface name
+    (?:\((?P<prototype>[^()]*)\)\s*)?       # Optional interface name
     (?:,\s*(?P<attributes>\w[^:]*))?        # Optional list of attributes
     (?:\s*::)?\s*                           # Optional double-colon
     (?P<names>\w.*)$                        # Required name(s)
@@ -670,41 +670,60 @@ class FordParser:
             entity.print_error(line, "Unexpected type-bound procedure")
             return
 
-        names = match["names"].split(",")
-        attributes = match["attributes"]
-        generic = match["generic"].lower()
+        attributes = ford.utils.paren_split(",", match["attributes"] or "")
+        generic = match["generic"].lower() == "generic"
         prototype = match["prototype"]
+        permission = child_permission
+        deferred = False
 
-        # Generic procedures or single name
-        if generic == "generic" or len(names) == 1:
+        proc_attributes = []
+
+        for attribute in attributes:
+            attribute = attribute.strip()
+            # Preserve original capitalisation -- TODO: needed?
+            attribute_lower = attribute.lower()
+            if attribute_lower in ["public", "private"]:
+                permission = attribute_lower
+            elif attribute_lower == "deferred":
+                deferred = True
+            else:
+                proc_attributes.append(attribute)
+
+        def find_bindings(line: str) -> Tuple[str, List[str]]:
+            """Get the bound name and what it points to"""
+            split = POINTS_TO_RE.split(line)
+            name = split[0].strip()
+            bindings: List[str] = []
+            if len(split) > 1:
+                binds = SPLIT_RE.split(split[1])
+                for bind in binds:
+                    bindings.append(bind.strip())
+            else:
+                bindings.append(name)
+            return name, bindings
+
+        # Slight complication here: for generic bound procedures, we
+        # want to make a single instance for the bound name and all
+        # its bindings. For non-generic bound procedures, we want to
+        # make a new instance for each name that appears in the
+        # declaration. To reduce duplication, we make a list of the
+        # whole generic declaration
+        names = [match["names"]] if generic else match["names"].split(",")
+
+        for bind in reversed(names):
+            name, bindings = find_bindings(bind)
             entity.boundprocs.append(
                 FortranBoundProcedure(
                     source,
                     self,
-                    entity,
-                    child_permission,
-                    names=match["names"],
+                    name=name,
+                    bindings=bindings,
+                    parent=entity,
+                    inherited_permission=permission,
                     attributes=attributes,
                     generic=generic,
                     prototype=prototype,
-                )
-            )
-            return
-
-        # For multiple procedures, parse each one as if it
-        # were on a line by itself
-        for bind in reversed(names):
-            pseudo_line = BOUNDPROC_RE.match(line[: match.start("names")] + bind)
-            entity.boundprocs.append(
-                FortranBoundProcedure(
-                    source,
-                    pseudo_line,
-                    entity,
-                    child_permission,
-                    names=match["names"],
-                    attributes=attributes,
-                    generic=generic,
-                    prototype=prototype,
+                    deferred=deferred,
                 )
             )
 
@@ -2636,33 +2655,14 @@ class FortranBoundProcedure(FortranBase):
     """
 
     def _initialize(self, **kwargs) -> None:
-        self.attribs: List[str] = []
-        self.deferred = False
-
-        for attribute in ford.utils.paren_split(",", kwargs["attributes"] or ""):
-            attribute = attribute.strip()
-            # Preserve original capitalisation -- TODO: needed?
-            attribute_lower = attribute.lower()
-            if attribute_lower in ["public", "private"]:
-                self.permission = attribute_lower
-            elif attribute_lower == "deferred":
-                self.deferred = True
-            else:
-                self.attribs.append(attribute)
-
-        split = POINTS_TO_RE.split(kwargs["names"])
-        self.name = split[0].strip()
-        self.generic = kwargs["generic"].lower() == "generic"
+        self.name: str = kwargs["name"]
+        self.attribs: list = kwargs["attributes"]
+        self.generic: bool = kwargs["generic"]
         self.proto = kwargs["prototype"]
-        if self.proto:
-            self.proto = self.proto[1:-1].strip()
-        self.bindings: List[Union[str, FortranProcedure, FortranBoundProcedure]] = []
-        if len(split) > 1:
-            binds = SPLIT_RE.split(split[1])
-            for bind in binds:
-                self.bindings.append(bind.strip())
-        else:
-            self.bindings.append(self.name)
+        self.bindings: List[
+            Union[str, FortranProcedure, FortranBoundProcedure]
+        ] = kwargs["bindings"]
+        self.deferred: bool = kwargs["deferred"]
 
     def correlate(self, project):
         self.all_procs = self.parent.all_procs
