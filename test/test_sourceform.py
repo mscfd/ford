@@ -2134,6 +2134,7 @@ def test_generic_source(tmp_path):
 
     assert source.doc_list == expected_docs
 
+
 def test_multiple_bound_procedures(parse_fortran_file):
     data = """\
     module test
