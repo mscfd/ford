@@ -202,7 +202,7 @@ def traverse(root, attrs) -> list:
 
 
 # Global Vars
-META_RE = re.compile(r"^[ ]{0,3}(?P<key>[A-Za-z0-9_-]+):\s*(?P<value>.*)")
+META_RE = re.compile(r"^[ ]{0,3}(?!(?i:(attention|remark(s)?|parameter(s)?|warning|fallback|nfa command)))(?P<key>[A-Za-z0-9_-]+):\s*(?P<value>.*)")
 META_MORE_RE = re.compile(r"^[ ]{4,}(?P<value>.*)")
 BEGIN_RE = re.compile(r"^-{3}(\s.*)?")
 END_RE = re.compile(r"^(-{3}|\.{3})(\s.*)?")
