@@ -143,14 +143,17 @@ class Associations:
         current_batch = {}
         for item in associations:
             # parse the association
-            new, old = item.split("=>")
-            new = new.strip().lower()
-            current_batch[new] = (
-                old.lower().replace("()", "").replace(" ", "").split("%")
-            )
-            # apply associations to this association if they exist
-            if current_batch[new][0] in self:
-                current_batch[new][0:1] = self[current_batch[new][0]]
+            if len(item.split("=>")) == 2:
+                new, old = item.split("=>")
+                new = new.strip().lower()
+                current_batch[new] = (
+                    old.lower().replace("()", "").replace(" ", "").split("%")
+                )
+                # apply associations to this association if they exist
+                if current_batch[new][0] in self:
+                    current_batch[new][0:1] = self[current_batch[new][0]]
+            else:
+                print('FAILED AT ITEM = "{}"'.format(item))
         self._batches.append(current_batch)
 
     def remove_last_batch(self):
