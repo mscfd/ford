@@ -173,17 +173,17 @@ class Project:
 
             extension = str(filename.suffix)[1:]  # Don't include the initial '.'
             fortran_extensions = self.extensions + self.fixed_extensions
-            try:
-                if extension in fortran_extensions:
-                    self._fortran_file(extension, filename, settings)
-                elif extension in self.extra_filetypes:
-                    self.extra_files.append(GenericSource(filename, settings))
-            except Exception as e:
-                if not settings.dbg:
-                    raise e
+            #try:
+            if extension in fortran_extensions:
+                self._fortran_file(extension, filename, settings)
+            elif extension in self.extra_filetypes:
+                self.extra_files.append(GenericSource(filename, settings))
+            #except Exception as e:
+            #    if not settings.dbg:
+            #        raise e
 
-                warn(f"Error parsing {relative_path}.\n\t{e.args if len(e.args) == 0 else e.args[0]}")
-                continue
+            #    warn(f"Error parsing {relative_path}.\n\t{e.args if len(e.args) == 0 else e.args[0]}")
+            #    continue
 
     def _fortran_file(
         self, extension: str, filename: PathLike, settings: ProjectSettings
