@@ -802,7 +802,7 @@ class FortranGraph:
         self.dot = Digraph(
             self.ident,
             graph_attr={
-                "size": "8.90625,1000.0",
+                "size": "17.57,1000.0",
                 "rankdir": self.RANKDIR,
                 "concentrate": "true",
                 "id": self.ident,
