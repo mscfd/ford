@@ -802,19 +802,25 @@ class FortranGraph:
         self.dot = Digraph(
             self.ident,
             graph_attr={
-                "size": "17.57,1000.0",
+                "size": "14.36,1000.0",
+                "margin": "1.5,0.2",
                 "rankdir": self.RANKDIR,
                 "concentrate": "true",
                 "id": self.ident,
+                "center": "true",
             },
             node_attr={
                 "shape": "box",
                 "height": "0.0",
                 "margin": "0.08",
-                "fontname": "Helvetica",
-                "fontsize": "10.5",
+                "fontname": "Monospace",
+                "fontsize": "15.0",
             },
-            edge_attr={"fontname": "Helvetica", "fontsize": "9.5"},
+            edge_attr={
+                "fontname": "Monospace",
+                "fontsize": "12",
+                "penwidth": "2.0",
+            },
             format="svg",
             engine="dot",
         )
@@ -1079,7 +1085,7 @@ class ModuleGraph(FortranGraph):
             hop_edges.append(_solid_edge(node, node.ancestor, colour))
 
     def _extra_attributes(self):
-        self.dot.attr("graph", size="11.875,1000.0")
+        self.dot.attr("graph", size="16.8,1000.0")
 
 
 class UsesGraph(FortranGraph):
@@ -1174,7 +1180,7 @@ class TypeGraph(FortranGraph):
             hop_edges.append(_solid_edge(node, node.ancestor, colour))
 
     def _extra_attributes(self):
-        self.dot.attr("graph", size="11.875,1000.0")
+        self.dot.attr("graph", size="16.8,1000.0")
 
 
 class InheritsGraph(FortranGraph):
@@ -1234,7 +1240,7 @@ class CallGraph(FortranGraph):
             hop_edges.append(_dashed_edge(node, p, colour))
 
     def _extra_attributes(self):
-        self.dot.attr("graph", size="11.875,1000.0")
+        self.dot.attr("graph", size="16.8,1000.0")
         self.dot.attr("graph", concentrate="false")
 
 
