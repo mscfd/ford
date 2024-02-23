@@ -1979,6 +1979,13 @@ class FortranType(FortranContainer):
                     self.attributes.append("external")
                 else:
                     self.attributes.append(attrib.strip())
+
+            if len(self.attributes) == 0:
+                self.attribs = []
+            else:
+                self.attribs = [""] + self.attributes
+
+
         if line.group(3):
             paramstr = line.group(3).strip()
             self.parameters = self.SPLIT_RE.split(paramstr)
