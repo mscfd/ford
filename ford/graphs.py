@@ -1028,7 +1028,10 @@ class FortranGraph:
         def rainbowcolour(depth, maxd):
             if not self.data.coloured_edges:
                 return "#000000"
-            (r, g, b) = colorsys.hsv_to_rgb(float(depth) / maxd, 1.0, 1.0)
+            colour_h = (float(depth) / maxd - float(nesting-1.0)/7.0) % 1.0
+            colour_s = 1.0 #- min(0.7, float(nesting)/5.0)
+            (r, g, b) = colorsys.hsv_to_rgb(colour_h, colour_s, 1.0)
+            #(r, g, b) = colorsys.hsv_to_rgb(float(depth) / maxd, 1.0, 1.0)
             rgb = [int(255 * r), int(255 * g), int(255 * b)]
             return '#{:02X}{:02X}{:02X}'.format(*rgb)
 
