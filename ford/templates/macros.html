@@ -266,27 +266,27 @@
 {% macro proc_summary(proc, title=True, small=False, proto=False, full_docstring=False) %}
   {# Render the summary of a procedure, to be used in lists of procedures, for example #}
   {% if title %}
-    {{ header(3, small) }}
+    {{ header(4, small) }}
     {{ proc_line(proc,proto=proto) }}
     {% if proto %}<small>Prototype</small>{% endif %}
-    {{ close_header(3, small) }}
+    {{ close_header(4, small) }}
   {% endif %}
   {% if proc.parent and proc.visible %}
     {{ meta_list(proc.meta) }}
   {% endif %}
   {{ docstring(proc, full_docstring) }}
 
-  {{ header(4, small) }}Arguments{{ close_header(4, small) }}
+  {{ header(5, small) }}Arguments{{ close_header(5, small) }}
   {% if proc.args %}
     {{ variable_list(proc.args, intent=True, summary=proc.visible) }}
   {% else %}
     <em>None</em>
   {% endif %}
   {% if proc.retvar %}
-    {{ header(4, small) }}
+    {{ header(5, small) }}
     Return Value
     <small>{{ proc.retvar.full_declaration | relurl(page_url) }}</small>
-    {{ close_header(4, small) }}
+    {{ close_header(5, small) }}
     {{ docstring(proc.retvar, full_docstring) }}
   {% endif %}
 {% endmacro %}
@@ -294,12 +294,12 @@
 {% macro binding_summary(proc,title=True,small=False,proto=False) %}
   {# Render the documentation for an individual binding of a type-bound procedure #}
   {% if title %}
-    {{ header(3, small) }}
+    {{ header(5, small) }}
     {{ proc_line(proc, proto=proto) }}
     {%- if proto -%}
       <small>Prototype</small>
     {%- endif -%}
-    {{ close_header(3, small) }}
+    {{ close_header(5, small) }}
   {% endif %}
   {% if proc.parent and proc.visible %}
     {{ meta_list(proc.meta) }}
@@ -307,17 +307,17 @@
 
   {{ docstring(proc, False) }}
 
-  {{ header(4, small) }}Arguments{{ close_header(4, small) }}
+  {{ header(5, small) }}Arguments{{ close_header(5, small) }}
   {% if proc.args|length %}
     {{ variable_list(proc.args, intent=True, summary=proc.visible, id=False) }}
   {% else %}
     <em>None</em>
   {% endif %}
   {% if proc.retvar %}
-    {{ header(4, small) }}
+    {{ header(5, small) }}
     Return Value
     <small>{{ proc.retvar.full_declaration | relurl(page_url) }}</small>
-    {{ close_header(4, small) }}
+    {{ close_header(5, small) }}
     {{ proc.retvar.doc }}
   {% endif %}
 {% endmacro %}
@@ -336,10 +336,10 @@
   <div class="card mt-3">
     <div class="card-header codesum">
       <span class="anchor" id="{{ tb.anchor }}"></span>
-      <h3>
+      <h5>
         {{ bound_declaration(tb) }}
         {{ deprecated(tb) }}
-      </h3>
+      </h5>
     </div>
     {% if tb.doc or meta_list(tb.meta)|trim|length is more_than_one %}
       <div class="card-body">
