@@ -492,7 +492,10 @@ class ProcNode(BaseNode):
         if binder:
             binding_label = f"{binder.name}%"
 
-        self.attribs["label"] = f"{parent_label}{binding_label}{self.name}"
+        if gd.show_proc_parent:
+            self.attribs["label"] = f"{parent_label}{binding_label}{self.name}"
+        else:
+            self.attribs["label"] = f"{self.name}"
 
         self.uses = set()
         self.calls = set()
