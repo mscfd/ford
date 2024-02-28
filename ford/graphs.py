@@ -839,6 +839,8 @@ class FortranGraph:
         root: Union[FortranContainer, Iterable[FortranContainer]],
         data: GraphData,
         ident: Optional[str] = None,
+        max_nesting: Optional[int] = 100000,
+        max_nodes: Optional[int] = 100000,
     ):
         self.root = []
         self.data = data
@@ -856,8 +858,9 @@ class FortranGraph:
 
         for r in root:
             self.root.append(self.data.get_node(r))
-            self.max_nesting = max(self.max_nesting, int(r.meta.graph_maxdepth))
-            self.max_nodes = max(self.max_nodes, int(r.meta.graph_maxnodes))
+            # allow restrictions if fo
+            self.max_nesting = max(self.max_nesting, min(max_nesting, int(r.meta.graph_maxdepth)))
+            self.max_nodes = max(self.max_nodes, min(max_nodes, int(r.meta.graph_maxnodes)))
             self.warn = self.warn or (r.settings.warn)
 
         ident = ident or f"{root[0].get_dir()}~~{root[0].ident}"
