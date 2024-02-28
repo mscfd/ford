@@ -26,7 +26,27 @@
         {%- if dtype.sequence%}<br>sequence{% endif -%}
       </h2>
     {{ dtype.doc }}
-    {% if dtype.inherbygraph or dtype.inhergraph %}<br>{% endif %}
+    {% if dtype.inhergraph or dtype.inhergraph_small or dtype.inherbygraph or dtype.inherbygraph_small %}<br>{% endif %}
+    {% if dtype.inhergraph_small %}
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Inherits [small]</h3>
+        </div>
+        <div class="card-body">
+          {{ dtype.inhergraph_small }}
+        </div>
+      </div>
+    {% endif %}
+    {% if dtype.inherbygraph_small %}
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Inherited by [small]</h3>
+        </div>
+        <div class="card-body">
+          {{ dtype.inherbygraph_small }}
+        </div>
+      </div>
+    {% endif %}
     {% if dtype.inhergraph %}
       <div class="card">
         <div class="card-header">
