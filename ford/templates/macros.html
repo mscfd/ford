@@ -706,7 +706,11 @@
 {% macro use_list(obj) %}
   {% if obj.uses or obj.ancestry %}
     <div class="card mb-4">
-      <h3 class="card-header card-title bg-light">Uses</h3>
+      {% if obj.usesgraph_small %}
+        <h3 class="card-header card-title bg-light">Uses [small]</h3>
+      {% else %}
+        <h3 class="card-header card-title bg-light">Uses</h3>
+      {% endif %}
       <div class="card-body">
         <ul class="list-group list-group-flush">
           {% if obj.uses %}
@@ -729,6 +733,11 @@
               </ul>
             </li>
           {% endif %}
+          {% if obj.usesgraph_small %}
+            <li class="list-group-item">
+              {{ obj.usesgraph_small }}
+            </li>
+          {% endif %}
           {% if obj.usesgraph %}
             <li class="list-group-item">
               {{ obj.usesgraph }}
@@ -744,7 +753,11 @@
 {% macro usedby_list(obj) %}
   {% if obj.usedbygraph or obj.descendants %}
     <div class="card">
-      <h3 class="card-header card-title bg-light">Used by</h3>
+      {% if obj.usedbygraph_small %}
+        <h3 class="card-header card-title bg-light">Used by [small]</h3>
+      {% else %}
+        <h3 class="card-header card-title bg-light">Used by</h3>
+      {% endif %}
       <div class="card-body">
         <ul class="list-group list-group-flush">
           {% if obj.descendants %}
@@ -757,7 +770,11 @@
               </ul>
             </li>
           {% endif %}
-          {% if obj.usedbygraph %}
+          {% if obj.usedbygraph_small %}
+            <li class="list-group-item">
+              {{ obj.usedbygraph_small }}
+            </li>
+          {% elif obj.usedbygraph %}
             <li class="list-group-item">
               {{ obj.usedbygraph }}
             </li>

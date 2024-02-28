@@ -18,6 +18,26 @@
     <div class="col-md-9" id='text'>
       {{ src.doc }}
       <br>
+      {% if src.efferentgraph_small %}
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">This file depends on [small]</h3>
+          </div>
+          <div class="card-body">
+            {{ src.efferentgraph_small }}
+          </div>
+        </div>
+      {% endif %}
+      {% if src.afferentgraph_small %}
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Files dependent on this one [small]</h3>
+          </div>
+          <div class="card-body">
+            {{ src.afferentgraph_small }}
+          </div>
+        </div>
+      {% endif %}
       {% if src.efferentgraph %}
         <div class="card">
           <div class="card-header">
@@ -38,7 +58,7 @@
           </div>
         </div>
       {% endif %}
-      {% if src.doc or src.efferentgraph or src.afferentgraph%}<br>{% endif %}
+      {% if src.doc or src.efferentgraph or src.efferentgraph_small or src.afferentgraph or src.afferentgraph_small%}<br>{% endif %}
 
       <section>
         <h2><span class="anchor" id="src"></span>Source Code</h2>

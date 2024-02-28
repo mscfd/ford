@@ -839,6 +839,7 @@ class FortranGraph:
         root: Union[FortranContainer, Iterable[FortranContainer]],
         data: GraphData,
         ident: Optional[str] = None,
+        suffix: Optional[str] = None,
         max_nesting: Optional[int] = 100000,
         max_nodes: Optional[int] = 100000,
     ):
@@ -851,7 +852,7 @@ class FortranGraph:
         self.max_nodes = 1
         self.warn = False
         self.truncated = -1
-        self.nesting = 0
+        self.nesting_level = 0
 
         if not isinstance(root, Iterable):
             root = [root]
@@ -859,13 +860,16 @@ class FortranGraph:
 
         for r in root:
             self.root.append(self.data.get_node(r))
-            # allow restrictions if fo
+            # if provided restrict individual nesting/nodes restriction to max_nesting and max_nodes
             self.max_nesting = max(self.max_nesting, min(max_nesting, int(r.meta.graph_maxdepth)))
             self.max_nodes = max(self.max_nodes, min(max_nodes, int(r.meta.graph_maxnodes)))
             self.warn = self.warn or (r.settings.warn)
 
         ident = ident or f"{root[0].get_dir()}~~{root[0].ident}"
         self.ident = f"{ident}~~{self.__class__.__name__}"
+        if suffix:
+            self.ident = f"{self.ident}_{suffix}"
+
         self.imgfile = self.ident
         self.dot = Digraph(
             self.ident,
@@ -929,7 +933,7 @@ class FortranGraph:
         If the graph was extended the function returns True, otherwise the
         result will be False.
         """
-        self.nesting = max(nesting, self.nesting)
+        self.nesting_level = max(nesting, self.nesting_level)
 
         if (len(nodes) + len(self.added)) > self.max_nodes:
             if nesting < 2:
@@ -1452,10 +1456,25 @@ class GraphManager:
             if is_module(obj):
                 obj.usesgraph = UsesGraph(obj, self.data)
                 obj.usedbygraph = UsedByGraph(obj, self.data)
+                #print('uses:         {:>30}, {:4d}, {:4d}'.format(obj.name, obj.usesgraph.nesting_level, len(obj.usesgraph.added)))
+                #print('usedby:       {:>30}, {:4d}, {:4d}'.format(obj.name, obj.usedbygraph.nesting_level, len(obj.usedbygraph.added)))
+                if (obj.usesgraph.nesting_level > 4) or (len(obj.usesgraph.added) > 60):
+                    obj.usesgraph_small = UsesGraph(obj, self.data, suffix="small", max_nesting=2, max_nodes=40)
+                    #print('uses small:   {:>30}, {:4d}, {:4d}'.format(obj.name, obj.usesgraph_small.nesting_level, len(obj.usesgraph_small.added)))
+                if (obj.usedbygraph.nesting_level > 4) or (len(obj.usedbygraph.added) > 60):
+                    obj.usedbygraph_small = UsedByGraph(obj, self.data, suffix="small", max_nesting=2, max_nodes=40)
+                    #print('usedby small: {:>30}, {:4d}, {:4d}'.format(obj.name, obj.usedbygraph_small.nesting_level, len(obj.usedbygraph_small.added)))
+
                 self.modules.add(obj)
+
             elif is_type(obj):
                 obj.inhergraph = InheritsGraph(obj, self.data)
                 obj.inherbygraph = InheritedByGraph(obj, self.data)
+                if obj.inhergraph.nesting_level > 5:
+                    obj.inhergraph_small = InheritsGraph(obj, self.data, suffix="small", max_nesting=3, max_nodes=40)
+                if obj.inherbygraph.nesting_level > 5:
+                    obj.inherbygraph_small = InheritedByGraph(obj, self.data, suffix="small", max_nesting=3, max_nodes=40)
+
                 self.types.add(obj)
                 # register bound procedures that arn't simple bindings (bindings that bind one procedure to one label)
                 for bp in getattr(obj, "boundprocs", []):
@@ -1464,26 +1483,43 @@ class GraphManager:
                         and not isinstance(bp.bindings[0], FortranBoundProcedure)
                     ):
                         self.bound_procedures.add(bp)
+
             elif is_proc(obj):
                 obj.callsgraph = CallsGraph(obj, self.data)
                 obj.calledbygraph = CalledByGraph(obj, self.data)
                 obj.usesgraph = UsesGraph(obj, self.data)
+                if obj.calledbygraph.nesting_level > 5:
+                    obj.calledbygraph_small = CalledByGraph(obj, self.data, suffix="small", max_nesting=3, max_nodes=40)
+                if obj.callsgraph.nesting_level > 5:
+                    obj.callsgraph_small = CallsGraph(obj, self.data, suffix="small", max_nesting=3, max_nodes=40)
+                if obj.usesgraph.nesting_level > 5:
+                    obj.usesgraph_small = UsesGraph(obj, self.data, suffix="small", max_nesting=3, max_nodes=40)
+
+
                 self.procedures.add(obj)
-                # regester internal procedures
+                # register internal procedures
                 for p in traverse(obj, ["subroutines", "functions"]):
                     (
                         self.internal_procedures.add(p)
                         if getattr(p, "visible", False)
                         else None
                     )
+
             elif is_program(obj):
                 obj.usesgraph = UsesGraph(obj, self.data)
                 obj.callsgraph = CallsGraph(obj, self.data)
                 self.programs.add(obj)
+
             elif is_sourcefile(obj):
                 obj.afferentgraph = AfferentGraph(obj, self.data)
                 obj.efferentgraph = EfferentGraph(obj, self.data)
+
+                if obj.afferentgraph.nesting_level > 4:
+                    obj.afferentgraph_small = AfferentGraph(obj, self.data, suffix="small", max_nesting=2, max_nodes=40)
+                if obj.efferentgraph.nesting_level > 4:
+                    obj.efferentgraph_small = EfferentGraph(obj, self.data, suffix="small", max_nesting=2, max_nodes=40)
                 self.sourcefiles.add(obj)
+
             elif is_blockdata(obj):
                 obj.usesgraph = UsesGraph(obj, self.data)
                 self.blockdata.add(obj)

@@ -47,29 +47,49 @@
       </h3>
       {{ procedure.retvar.doc }}
     {% endif %}
-    {% if procedure.calledbygraph or procedure.callsgraph %}
+    {% if procedure.calledbygraph or procedure.calledbygraph_small or procedure.callsgraph or procedure.callsgraph_small %}
     <br>
+    {% endif %}
+    {% if procedure.callsgraph_small %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Calls [small]</h3>
+      </div>
+      <div class="card-body">
+        {{ procedure.callsgraph_small }}
+      </div>
+    </div>
+    {% endif %}
+    {% if procedure.calledbygraph_small %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Called by [small]</h3>
+      </div>
+      <div class="card-body">
+        {{ procedure.calledbygraph_small }}
+      </div>
+    </div>
     {% endif %}
     {% if procedure.callsgraph %}
     <div class="card">
       <div class="card-header">
-  <h3 class="card-title">Calls</h3>
+        <h3 class="card-title">Calls</h3>
       </div>
       <div class="card-body">
-  {{ procedure.callsgraph }}
+        {{ procedure.callsgraph }}
       </div>
     </div>
-     {% endif %}
-     {% if procedure.calledbygraph %}
+    {% endif %}
+    {% if procedure.calledbygraph %}
     <div class="card">
       <div class="card-header">
-  <h3 class="card-title">Called by</h3>
+        <h3 class="card-title">Called by</h3>
       </div>
       <div class="card-body">
-  {{ procedure.calledbygraph }}
+        {{ procedure.calledbygraph }}
       </div>
     </div>
-     {% endif %}
+    {% endif %}
     <br>
 
     {% if procedure.common %}
