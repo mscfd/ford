@@ -851,6 +851,7 @@ class FortranGraph:
         self.max_nodes = 1
         self.warn = False
         self.truncated = -1
+        self.nesting = 0
 
         if not isinstance(root, Iterable):
             root = [root]
@@ -928,6 +929,8 @@ class FortranGraph:
         If the graph was extended the function returns True, otherwise the
         result will be False.
         """
+        self.nesting = max(nesting, self.nesting)
+
         if (len(nodes) + len(self.added)) > self.max_nodes:
             if nesting < 2:
                 self.hop_nodes = nodes
