@@ -1172,10 +1172,23 @@ class UsesGraph(FortranGraph):
     _legend = MOD_GRAPH_KEY
 
     def add_node(self, hop_nodes, hop_edges, node, colour):
-        for nu in sorted(node.uses):
-            if nu not in self.added:
-                hop_nodes.add(nu)
-            hop_edges.append(_dashed_edge(node, nu, colour))
+        root_name = sorted(self.root)[0].name
+        # follow edges if prefix of module is the same as that of the root node
+        # (example: if root is some "modelXYZ", then accept all other "modelUVW" modules,
+        # otherwise stop at "modelUVW")
+        root_match = re.match('([a-zA-Z]+(?=_))|([a-z]+(?![a-z]))|([A-Z]+(?![A-Z]))', root_name)
+        if root_match:
+            root_prefix = root_match.group(0)
+        else:
+            # should not happen, as module names should start with some letters
+            root_prefix = root_name
+        #print('root: ', root_name, root_prefix, root_match)
+        rx = "(library_|FPM|model|curveEvaluation|common|array|classStar|regex|generic)"
+        if (not re.match(rx, node.name)) or node.name.startswith(root_prefix):
+            for nu in sorted(node.uses):
+                if nu not in self.added:
+                    hop_nodes.add(nu)
+                hop_edges.append(_dashed_edge(node, nu, colour))
 
         if hasattr(node, "ancestor"):
             if node.ancestor not in self.added:
