@@ -877,6 +877,9 @@ class FortranGraph:
             self.ident,
             graph_attr={
                 "size": "14.36,1000.0",
+                "ration": "expand",
+                #"ranksep": "1.0",
+                "nodesep": "0.8",
                 "margin": "1.5,0.2",
                 "rankdir": self.RANKDIR,
                 "concentrate": "true",
