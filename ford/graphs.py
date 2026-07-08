@@ -931,6 +931,13 @@ class FortranGraph:
                 width = int(match.group(1))
             else:
                 width = 0
+            if match := HEIGHT_RE.search(self.svg_src):
+                height = int(match.group(1))
+            else:
+                height = 0
+            self.svg_width = width
+            self.svg_height = height
+
             if isinstance(self, (ModuleGraph, CallGraph, TypeGraph)):
                 self.scaled = width >= 855
             else:
@@ -1002,7 +1009,11 @@ class FortranGraph:
             rettext = self._make_graph_as_table()
         # generate svg graph
         else:
-            rettext = f'<div class="depgraph">{self.svg_src}</div>'
+            if self.svg_width and self.svg_height:
+                ratio_style = f' style="aspect-ratio: {self.svg_width} / {self.svg_height};"'
+            else:
+                ratio_style = ""
+            rettext = f'<div class="depgraph"{ratio_style}>{self.svg_src}</div>'
             # add zoom ability for big graphs
             if self.scaled:
                 zoomName = re.sub(r"[^\w]", "", self.ident)

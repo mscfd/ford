@@ -177,7 +177,7 @@ table tr.submod>td {
 
 .depgraph {
     width: 100%;
-    height: 70vh;      /* or a fixed value like 650px — pick what suits your layout */
+    max-height: 80vh;
 }
 
 .depgraph svg {
