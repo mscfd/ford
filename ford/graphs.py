@@ -1334,6 +1334,59 @@ class InheritedByGraph(FortranGraph):
             hop_edges.append(_solid_edge(c, node, colour))
 
 
+class TypeHierarchyGraph(FortranGraph):
+    """Shows both ancestors and descendants of a type, with the type
+    itself in the middle. Ancestors (what this type extends) are placed
+    on one side, descendants (types that extend this one) on the other.
+    """
+
+    _should_add_nested_nodes = True
+    _legend = TYPE_GRAPH_KEY
+
+    def __init__(self, *args, **kwargs):
+        self._seen_edges = set()
+        super().__init__(*args, **kwargs)
+
+    def _add_edge_once(self, hop_edges, edge):
+        key = (
+            edge["edge"]["tail_name"],
+            edge["edge"]["head_name"],
+            edge["edge"]["style"],
+        )
+        if key in self._seen_edges:
+            return
+        self._seen_edges.add(key)
+        hop_edges.append(edge)
+
+    def add_node(self, hop_nodes, hop_edges, node, colour):
+        # ancestor side (edges point away from node)
+        for c in node.comp_types:
+            if c not in self.added:
+                hop_nodes.add(c)
+            self._add_edge_once(
+                hop_edges, _dashed_edge(node, c, colour, node.comp_types[c])
+            )
+        if node.ancestor:
+            if node.ancestor not in self.added:
+                hop_nodes.add(node.ancestor)
+            self._add_edge_once(hop_edges, _solid_edge(node, node.ancestor, colour))
+
+        # descendant side (edges point toward node)
+        for c in node.comp_of:
+            if c not in self.added:
+                hop_nodes.add(c)
+            self._add_edge_once(
+                hop_edges, _dashed_edge(c, node, colour, node.comp_of[c])
+            )
+        for c in node.children:
+            if c not in self.added:
+                hop_nodes.add(c)
+            self._add_edge_once(hop_edges, _solid_edge(c, node, colour))
+
+    def extra_attributes(self):
+        self.dot.attr("graph", size="16.8,1000.0")
+
+
 class CallGraph(FortranGraph):
     """
     Adds edges indicating the call-tree for the procedures listed in
@@ -1510,6 +1563,9 @@ class GraphManager:
             elif is_type(obj):
                 obj.inhergraph = InheritsGraph(obj, self.data)
                 obj.inherbygraph = InheritedByGraph(obj, self.data)
+                obj.hierarchygraph = TypeHierarchyGraph(
+                    obj, self.data, suffix="hierarchy", max_nesting=2
+                )
                 if obj.inhergraph.nesting_level > 5:
                     obj.inhergraph_small = InheritsGraph(obj, self.data, suffix="small", max_nesting=3, max_nodes=40)
                 if obj.inherbygraph.nesting_level > 5:
