@@ -602,70 +602,81 @@ class FileNode(BaseNode):
                 self.efferent.add(n)
 
 
+def _wrap_label(label: str, nblines_max: int = 3) -> str:
+    """Wrap a comma-separated label onto multiple lines, keeping lines
+    short when all items are short, and allowing wider lines only when
+    some individual item actually needs the extra room.
+    """
+    label_list = re.split('\s*,\s*', label)
+    max_item_len = max(len(l) for l in label_list)
+
+    # tighter wrapping saves horizontal space when all names are short;
+    # widen the limit only if some individual name actually needs it
+    if max_item_len > 20:
+        len_max = 30
+    else:
+        len_max = 20
+
+    # simple variant with one line abbreviation
+    #if len(label) > len_max:
+    #    label_cut = label[:(len_max-3)] + '...'
+    if len(label) <= len_max:
+        return label
+
+    nblines = 1
+
+    # avoid special case of first item in loop below
+    l = label_list[0]
+    label_cut = l
+    lencurr = len(l)
+
+    for i in range(1, len(label_list)):
+        l = label_list[i]
+        is_last = (i == len(label_list) - 1)
+        if len(l) > (len_max - 1):
+            # first shorten very long names, reserve five characters for either a comma or ', ...'
+            l = l[:(len_max - 3 - 5)] + '...'
+
+        if nblines < nblines_max:
+            # not the last line
+            # if last item in label_list: use full len_max character length
+            # if not last item in label_list: reserve 1 character for ',' before linebreak
+            if ((is_last and (lencurr + 2 + len(l) > len_max)) or
+                ((not is_last) and (lencurr + 2 + len(l) > (len_max - 1)))):
+                label_cut = label_cut + ',\n' + l
+                # new line, reset lencurr to length of current line which contains only l
+                lencurr = len(l)
+                nblines = nblines + 1
+            else:
+                # item fits onto line
+                label_cut = label_cut + ', ' + l
+                # add length of l and ', ' to length of last line
+                lencurr = lencurr + 2 + len(l)
+
+        else:
+            # last line, no more linebreaks
+
+            # if last item in label_list: use full len_max character length
+            # if not last item in label_list: reserve 5 characters for ', ...'
+            if ((is_last and (lencurr + 2 + len(l) > len_max)) or
+                ((not is_last) and (lencurr + 2 + len(l) > (len_max - 5)))):
+                # abort by finishing the current and last line by ', ...'
+                label_cut = label_cut + ', ...'
+                break
+            else:
+                # item fits onto line
+                label_cut = label_cut + ', ' + l
+                # add length of l and ', ' to length of last line
+                lencurr = lencurr + 2 + len(l)
+
+    return label_cut
+
+
 def _edge(
     tail: BaseNode, head: BaseNode, style: str, colour: str, label: Optional[str] = None
 ) -> Dict:
 
-    if label != None:
-        len_max = 40
-        nblines_max = 3
-
-        # simple variant with one line abbreviation
-        #if len(label) > len_max:
-        #    label_cut = label[:(len_max-3)] + '...'
-        if len(label) > len_max:
-            label_list = re.split('\s*,\s*', label)
-            nblines = 1
-
-            # avoid special case of first item in loop below
-            l = label_list[0]
-            label_cut = l
-            lencurr = len(l)
-
-            for i in range(1,len(label_list)):
-                l = label_list[i]
-                is_last = (i == len(label_list)-1)
-                if len(l) > (len_max-1):
-                    # first shorten very long names, reserve five characters for either a comma or ', ...'
-                    l = l[:(len_max-3-5)] + '...'
-
-                if (nblines < nblines_max):
-                    # not the last line
-                    # if last item in label_list: use full len_max character length
-                    # if not last item in label_list: reserve 1 character for ',' before linebreak
-                    if ((is_last       and (lencurr + 2 + len(l) > len_max)) or
-                        ((not is_last) and (lencurr + 2 + len(l) > (len_max-1)))):
-                        label_cut = label_cut + ',\n' + l
-                        # new line, reset lencurr to length of current line which contains only l
-                        lencurr = len(l)
-                        nblines = nblines + 1
-                    else:
-                        # item fits onto line
-                        label_cut = label_cut + ', ' + l
-                        # add length of l and ', ' to length of last line
-                        lencurr = lencurr + 2 + len(l)
-
-                else:
-                    # last line, no more linebreaks
-
-                    # if last item in label_list: use full len_max character length
-                    # if not last item in label_list: reserve 5 characters for ', ...'
-                    if ((is_last       and (lencurr + 2 + len(l) > len_max)) or
-                        ((not is_last) and (lencurr + 2 + len(l) > (len_max-5)))):
-                        # abort by finishing the current and last line by ', ...'
-                        label_cut = label_cut + ', ...'
-                        break
-
-                    else:
-                        # item fits onto line
-                        label_cut = label_cut + ', ' + l
-                        # add length of l and ', ' to length of last line
-                        lencurr = lencurr + 2 + len(l)
-
-        else:
-            label_cut = label
-    else:
-        label_cut = None
+    label_cut = _wrap_label(label) if label != None else None
 
     return {
         "tail_node": tail,
