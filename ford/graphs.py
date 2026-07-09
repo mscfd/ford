@@ -1338,10 +1338,18 @@ class TypeHierarchyGraph(FortranGraph):
     """Shows both ancestors and descendants of a type, with the type
     itself in the middle. Ancestors (what this type extends) are placed
     on one side, descendants (types that extend this one) on the other.
+
+    To avoid pulling in large numbers of loosely related nodes, any
+    node other than the root with more than MAX_SECONDARY_EDGES
+    incoming (or outgoing) edges has all edges in that direction
+    omitted -- such "hub" nodes are shown, but their own web of
+    connections is not expanded.
     """
 
     _should_add_nested_nodes = True
     _legend = TYPE_GRAPH_KEY
+
+    MAX_SECONDARY_EDGES = 5
 
     def __init__(self, *args, **kwargs):
         self._seen_edges = set()
@@ -1359,29 +1367,39 @@ class TypeHierarchyGraph(FortranGraph):
         hop_edges.append(edge)
 
     def add_node(self, hop_nodes, hop_edges, node, colour):
-        # ancestor side (edges point away from node)
-        for c in node.comp_types:
-            if c not in self.added:
-                hop_nodes.add(c)
-            self._add_edge_once(
-                hop_edges, _dashed_edge(node, c, colour, node.comp_types[c])
-            )
-        if node.ancestor:
-            if node.ancestor not in self.added:
-                hop_nodes.add(node.ancestor)
-            self._add_edge_once(hop_edges, _solid_edge(node, node.ancestor, colour))
+        is_root = node in self.root
 
-        # descendant side (edges point toward node)
-        for c in node.comp_of:
-            if c not in self.added:
-                hop_nodes.add(c)
-            self._add_edge_once(
-                hop_edges, _dashed_edge(c, node, colour, node.comp_of[c])
-            )
-        for c in node.children:
-            if c not in self.added:
-                hop_nodes.add(c)
-            self._add_edge_once(hop_edges, _solid_edge(c, node, colour))
+        outgoing_count = (1 if node.ancestor else 0) + len(node.comp_types)
+        incoming_count = len(node.children) + len(node.comp_of)
+
+        show_outgoing = is_root or outgoing_count <= self.MAX_SECONDARY_EDGES
+        show_incoming = is_root or incoming_count <= self.MAX_SECONDARY_EDGES
+
+        if show_outgoing:
+            # ancestor side (edges point away from node)
+            for c in node.comp_types:
+                if c not in self.added:
+                    hop_nodes.add(c)
+                self._add_edge_once(
+                    hop_edges, _dashed_edge(node, c, colour, node.comp_types[c])
+                )
+            if node.ancestor:
+                if node.ancestor not in self.added:
+                    hop_nodes.add(node.ancestor)
+                self._add_edge_once(hop_edges, _solid_edge(node, node.ancestor, colour))
+
+        if show_incoming:
+            # descendant side (edges point toward node)
+            for c in node.comp_of:
+                if c not in self.added:
+                    hop_nodes.add(c)
+                self._add_edge_once(
+                    hop_edges, _dashed_edge(c, node, colour, node.comp_of[c])
+                )
+            for c in node.children:
+                if c not in self.added:
+                    hop_nodes.add(c)
+                self._add_edge_once(hop_edges, _solid_edge(c, node, colour))
 
     def extra_attributes(self):
         self.dot.attr("graph", size="16.8,1000.0")
