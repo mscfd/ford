@@ -299,6 +299,37 @@ def get_call_nodes(
     return result
 
 
+def _iter_type_procedures(obj) -> Iterable:
+    """Yield the FortranProcedure implementations bound to a derived
+    type, considering only bindings introduced or overridden by this
+    type itself -- not those merely inherited unchanged from an
+    ancestor (those are attributed to the ancestor instead, mirroring
+    how `local_variables` vs. `variables` already works for components).
+
+    Resolves through generic bindings, which indirect through other
+    FortranBoundProcedure objects before reaching an actual procedure.
+    """
+    ancestor_boundprocs = {id(bp) for bp in getattr(obj.extends, "boundprocs", [])}
+
+    def _own_bindings():
+        for bp in getattr(obj, "boundprocs", []):
+            if id(bp) in ancestor_boundprocs:
+                continue
+            yield from bp.bindings
+
+    seen = set()
+
+    def _walk(bindings):
+        for binding in bindings:
+            if isinstance(binding, FortranBoundProcedure):
+                yield from _walk(binding.bindings)
+            elif hasattr(binding, "variables") and id(binding) not in seen:
+                seen.add(id(binding))
+                yield binding
+
+    yield from _walk(_own_bindings())
+
+
 class BaseNode:
     """Graph node representing some Fortran entity
 
@@ -424,6 +455,9 @@ class TypeNode(BaseNode):
         self.children = set()
         self.comp_types = {}
         self.comp_of = {}
+        self.uses_local = {}
+        self.used_locally_by = {}
+
         if self.fromstr:
             return
 
@@ -438,6 +472,13 @@ class TypeNode(BaseNode):
             self.ancestor.children.add(self)
             self.ancestor.visible = getattr(obj.extends, "visible", True)
 
+        self._collect_components(obj, gd, hist)
+        self._collect_local_uses(obj, gd, hist)
+
+    def _collect_components(self, obj, gd: GraphData, hist) -> None:
+        """Populate comp_types/comp_of from this type's own local
+        (non-inherited) component variables.
+        """
         for var in obj.local_variables:
             if var.vartype not in ["type", "class"]:
                 continue
@@ -457,6 +498,32 @@ class TypeNode(BaseNode):
                 self.comp_types[node] += ", " + var.name
             else:
                 self.comp_types[node] = var.name
+
+    def _collect_local_uses(self, obj, gd: GraphData, hist) -> None:
+        """Populate uses_local/used_locally_by from derived-type variables
+        declared locally within this type's own bound-procedure
+        implementations (not stored as components, just used transiently).
+        """
+        for proc in _iter_type_procedures(obj):
+            for var in proc.variables:
+                if var.vartype not in ["type", "class"]:
+                    continue
+
+                proto = var.proto[0]
+                if proto == "*":
+                    continue
+
+                node = gd.get_type_node(proto, hist)
+                node.visible = getattr(proto, "visible", True)
+                label = f"{proc.name}:{var.name}"
+                if self in node.used_locally_by:
+                    node.used_locally_by[self] += ", " + label
+                else:
+                    node.used_locally_by[self] = label
+                if node in self.uses_local:
+                    self.uses_local[node] += ", " + label
+                else:
+                    self.uses_local[node] = label
 
 
 class ProcNode(BaseNode):
@@ -703,6 +770,12 @@ def _dashed_edge(
     return _edge(tail, head, "dashed", colour, label)
 
 
+def _dotted_edge(
+    tail: BaseNode, head: BaseNode, colour: str, label: Optional[str] = None
+) -> Dict:
+    return _edge(tail, head, "dotted", colour, label)
+
+
 if graphviz_installed:
     # Create the legends for the graphs. These are their own separate graphs,
     # without edges
@@ -773,6 +846,9 @@ TYPE_GRAPH_KEY = f"""
 extends. Dashed arrows point from a derived type to the other
 types it contains as a components, with a label listing the name(s) of
 said component(s).
+Dotted arrows point from a derived type to other types used only locally
+within one of its type-bound procedures (created, used, and discarded
+within the method body, rather than stored as a component).
 </p>
 """
 
@@ -1369,8 +1445,8 @@ class TypeHierarchyGraph(FortranGraph):
     def add_node(self, hop_nodes, hop_edges, node, colour):
         is_root = node in self.root
 
-        outgoing_count = (1 if node.ancestor else 0) + len(node.comp_types)
-        incoming_count = len(node.children) + len(node.comp_of)
+        outgoing_count = (1 if node.ancestor else 0) + len(node.comp_types) + len(node.uses_local)
+        incoming_count = len(node.children) + len(node.comp_of) + len(node.used_locally_by)
 
         show_outgoing = is_root or outgoing_count <= self.MAX_SECONDARY_EDGES
         show_incoming = is_root or incoming_count <= self.MAX_SECONDARY_EDGES
@@ -1382,6 +1458,12 @@ class TypeHierarchyGraph(FortranGraph):
                     hop_nodes.add(c)
                 self._add_edge_once(
                     hop_edges, _dashed_edge(node, c, colour, node.comp_types[c])
+                )
+            for c in node.uses_local:
+                if c not in self.added:
+                    hop_nodes.add(c)
+                self._add_edge_once(
+                    hop_edges, _dotted_edge(node, c, colour, node.uses_local[c])
                 )
             if node.ancestor:
                 if node.ancestor not in self.added:
@@ -1395,6 +1477,12 @@ class TypeHierarchyGraph(FortranGraph):
                     hop_nodes.add(c)
                 self._add_edge_once(
                     hop_edges, _dashed_edge(c, node, colour, node.comp_of[c])
+                )
+            for c in node.used_locally_by:
+                if c not in self.added:
+                    hop_nodes.add(c)
+                self._add_edge_once(
+                    hop_edges, _dotted_edge(c, node, colour, node.used_locally_by[c])
                 )
             for c in node.children:
                 if c not in self.added:
