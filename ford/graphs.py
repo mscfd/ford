@@ -474,6 +474,7 @@ class TypeNode(BaseNode):
 
         self._collect_components(obj, gd, hist)
         self._collect_local_uses(obj, gd, hist)
+        self._collect_call_dependencies(obj, gd, hist)
 
     def _collect_components(self, obj, gd: GraphData, hist) -> None:
         """Populate comp_types/comp_of from this type's own local
@@ -501,29 +502,96 @@ class TypeNode(BaseNode):
 
     def _collect_local_uses(self, obj, gd: GraphData, hist) -> None:
         """Populate uses_local/used_locally_by from derived-type variables
-        declared locally within this type's own bound-procedure
-        implementations (not stored as components, just used transiently).
+        used within this type's own bound-procedure implementations --
+        whether declared as a true local (proc:var), a dummy argument
+        (proc->var), or a function result (proc->var).
         """
+
+        def _record(proc, var, separator):
+            if not hasattr(var, "vartype") or var.vartype not in ["type", "class"]:
+                return
+            if not getattr(var, "proto", None):
+                return
+
+            proto = var.proto[0]
+            if proto == "*":
+                return
+
+            node = gd.get_type_node(proto, hist)
+            if node == self:
+                return  # skip self-referencing edges (e.g. the passed-object dummy arg)
+
+            node = gd.get_type_node(proto, hist)
+            node.visible = getattr(proto, "visible", True)
+            if separator == "":
+                label = f"{proc.name}"
+            else:
+                label = f"{proc.name}{separator}{var.name}"
+            if self in node.used_locally_by:
+                node.used_locally_by[self] += ", " + label
+            else:
+                node.used_locally_by[self] = label
+            if node in self.uses_local:
+                self.uses_local[node] += ", " + label
+            else:
+                self.uses_local[node] = label
+
         for proc in _iter_type_procedures(obj):
             for var in proc.variables:
-                if var.vartype not in ["type", "class"]:
-                    continue
+                #_record(proc, var, ":")
+                _record(proc, var, "")
+            for var in getattr(proc, "args", []):
+                #_record(proc, var, "\u2192")
+                _record(proc, var, "")
+            if retvar := getattr(proc, "retvar", None):
+                #_record(proc, retvar, "\u2190")
+                _record(proc, retvar, "")
 
-                proto = var.proto[0]
-                if proto == "*":
-                    continue
+    def _collect_call_dependencies(self, obj, gd: GraphData, hist) -> None:
+        """Pick up dependencies mediated through resolved calls: if a
+        bound procedure calls another procedure (e.g. a factory
+        function), that called procedure's own argument/return types
+        count as a dependency too. This is how factory-pattern
+        coupling becomes visible even though the local variable it's
+        assigned to only shows the abstract/declared type.
+        """
 
-                node = gd.get_type_node(proto, hist)
-                node.visible = getattr(proto, "visible", True)
-                label = f"{proc.name}:{var.name}"
-                if self in node.used_locally_by:
-                    node.used_locally_by[self] += ", " + label
-                else:
-                    node.used_locally_by[self] = label
-                if node in self.uses_local:
-                    self.uses_local[node] += ", " + label
-                else:
-                    self.uses_local[node] = label
+        def _record(proc, called, var):
+            if not hasattr(var, "vartype") or var.vartype not in ["type", "class"]:
+                return
+            if not getattr(var, "proto", None):
+                return
+
+            proto = var.proto[0]
+            if proto == "*":
+                return
+
+            node = gd.get_type_node(proto, hist)
+            if node == self:
+                return  # skip self-referencing edges (e.g. the passed-object dummy arg)
+
+            node = gd.get_type_node(proto, hist)
+            node.visible = getattr(proto, "visible", True)
+            #label = f"{proc.name}\u21a3{called.name}"
+            label = f"{proc.name}"
+            if self in node.used_locally_by:
+                node.used_locally_by[self] += ", " + label
+            else:
+                node.used_locally_by[self] = label
+            if node in self.uses_local:
+                self.uses_local[node] += ", " + label
+            else:
+                self.uses_local[node] = label
+
+        for proc in _iter_type_procedures(obj):
+            for called in getattr(proc, "calls", []):
+                if not hasattr(called, "args"):
+                    continue  # unresolved (string) call -- external/unknown target
+
+                for var in called.args:
+                    _record(proc, called, var)
+                if retvar := getattr(called, "retvar", None):
+                    _record(proc, called, retvar)
 
 
 class ProcNode(BaseNode):
