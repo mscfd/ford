@@ -1497,6 +1497,7 @@ class TypeHierarchyGraph(FortranGraph):
 
     def __init__(self, *args, **kwargs):
         self._seen_edges = set()
+        self._direction: Dict[BaseNode, Set[str]] = {}
         super().__init__(*args, **kwargs)
 
     def _add_edge_once(self, hop_edges, edge):
@@ -1510,6 +1511,9 @@ class TypeHierarchyGraph(FortranGraph):
         self._seen_edges.add(key)
         hop_edges.append(edge)
 
+    def _mark_direction(self, node, direction):
+        self._direction.setdefault(node, set()).add(direction)
+
     def add_node(self, hop_nodes, hop_edges, node, colour):
         is_root = node in self.root
 
@@ -1517,49 +1521,70 @@ class TypeHierarchyGraph(FortranGraph):
         incoming_count = len(node.children) + len(node.comp_of) + len(node.used_locally_by)
 
         if is_root:
-            max_edges = 2*self.MAX_SECONDARY_EDGES
+            max_edges = 5 * self.MAX_SECONDARY_EDGES
+            allowed = {"out", "in"}
         else:
             max_edges = self.MAX_SECONDARY_EDGES
+            # only continue in the direction opposite to how this node was
+            # reached from root -- forbids same-direction chains (out.out,
+            # in.in) and keeps only the mixed compositions G_in.G_out and
+            # G_out.G_in, so every displayed path changes direction exactly
+            # once. This is what prevents dot's longest-path ranking from
+            # stringing same-direction hops into a misleadingly long chain.
+            reached_via = self._direction.get(node, {"out", "in"})
+            allowed = {"out", "in"} - reached_via
+            if not allowed:
+                allowed = {"out", "in"}  # node reached both ways from root
 
-        show_outgoing = outgoing_count <= max_edges
-        show_incoming = incoming_count <= max_edges
+        show_outgoing = ("out" in allowed) and (outgoing_count <= max_edges)
+        show_incoming = ("in" in allowed) and (incoming_count <= max_edges)
 
         if show_outgoing:
-            # ancestor side (edges point away from node)
             for c in node.comp_types:
                 if c not in self.added:
                     hop_nodes.add(c)
+                if is_root:
+                    self._mark_direction(c, "out")
                 self._add_edge_once(
                     hop_edges, _dashed_edge(node, c, colour, node.comp_types[c])
                 )
             for c in node.uses_local:
                 if c not in self.added:
                     hop_nodes.add(c)
+                if is_root:
+                    self._mark_direction(c, "out")
                 self._add_edge_once(
                     hop_edges, _dotted_edge(node, c, colour, node.uses_local[c])
                 )
             if node.ancestor:
                 if node.ancestor not in self.added:
                     hop_nodes.add(node.ancestor)
+                if is_root:
+                    self._mark_direction(node.ancestor, "out")
                 self._add_edge_once(hop_edges, _solid_edge(node, node.ancestor, colour))
 
         if show_incoming:
-            # descendant side (edges point toward node)
             for c in node.comp_of:
                 if c not in self.added:
                     hop_nodes.add(c)
+                if is_root:
+                    self._mark_direction(c, "in")
                 self._add_edge_once(
                     hop_edges, _dashed_edge(c, node, colour, node.comp_of[c])
                 )
             for c in node.used_locally_by:
                 if c not in self.added:
                     hop_nodes.add(c)
+                if is_root:
+                    self._mark_direction(c, "in")
                 self._add_edge_once(
                     hop_edges, _dotted_edge(c, node, colour, node.used_locally_by[c])
                 )
             for c in node.children:
                 if c not in self.added:
                     hop_nodes.add(c)
+                if is_root:
+                    self._mark_direction(c, "in")
                 self._add_edge_once(hop_edges, _solid_edge(c, node, colour))
 
     def extra_attributes(self):
