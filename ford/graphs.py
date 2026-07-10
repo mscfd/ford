@@ -1516,8 +1516,13 @@ class TypeHierarchyGraph(FortranGraph):
         outgoing_count = (1 if node.ancestor else 0) + len(node.comp_types) + len(node.uses_local)
         incoming_count = len(node.children) + len(node.comp_of) + len(node.used_locally_by)
 
-        show_outgoing = is_root or outgoing_count <= self.MAX_SECONDARY_EDGES
-        show_incoming = is_root or incoming_count <= self.MAX_SECONDARY_EDGES
+        if is_root:
+            max_edges = 2*self.MAX_SECONDARY_EDGES
+        else:
+            max_edges = self.MAX_SECONDARY_EDGES
+
+        show_outgoing = outgoing_count <= max_edges
+        show_incoming = incoming_count <= max_edges
 
         if show_outgoing:
             # ancestor side (edges point away from node)
